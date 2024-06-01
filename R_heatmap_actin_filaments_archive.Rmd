@@ -1,0 +1,259 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Load packages
+
+```{r}
+set.seed(99)
+library(ComplexHeatmap)
+suppressPackageStartupMessages(library(ComplexHeatmap))
+library(randomcoloR)
+library(circlize)
+suppressPackageStartupMessages(library(circlize))
+library(dendextend)
+suppressPackageStartupMessages(library(dendextend))
+library(InteractiveComplexHeatmap)
+suppressPackageStartupMessages(library(InteractiveComplexHeatmap))
+library(cluster)
+library(factoextra)
+```
+
+Load data
+
+```{r}
+mat<- read.table("actin_interface_matrix_actin_filaments.csv", header = T, sep = ",", row.names = "X")
+annot_mat <- read.table("actin_interactor_domain_annot_temp.csv", header = T, sep = ",", row.names = "X")
+# num_cluster = 6
+savefilename = "actin_filaments_.png"
+
+# assign colors to annotations
+col_fun = colorRamp2(c(0, 1), c("white", "cornflowerblue"))
+#col_fun(seq(-3, 3))
+set.seed(9)
+# Function to generate random colors
+generate_color <- function() {
+  # Define a range for light and bright colors
+  light_range <- c(50:225, 255) # Adjust as needed
+  # Generate random values within the defined range for red, green, and blue
+  r <- sample(light_range, 1)/255
+  g <- sample(light_range, 1)/255
+  b <- sample(light_range, 1)/255
+  rgb(r, g, b)
+}
+
+# Function to create the named list
+create_named_list <- function(objects) {
+  named_list <- list()
+  unique_objects <- unique(objects)
+  for (obj in unique_objects) {
+    named_list[[obj]] <- generate_color()
+  }
+  return(named_list)
+}
+
+# Example list of objects
+objects <- as.list(annot_mat$domain)
+
+# Create the named list
+named_list_d <- create_named_list(objects)
+named_list_f <- create_named_list(as.list(annot_mat$family))
+named_list_s <- create_named_list(as.list(annot_mat$superfamily))
+
+named_list_d["no_domain_annotation"] <- "white"
+named_list_f["no_family_annotation"] <- "white"
+named_list_s["no_supfamily_annotation"] <- "white"
+
+# Convert data to matrix and match with annotations Add row annotations
+common_rows <- intersect(rownames(mat), rownames(annot_mat))
+annot_mat <- annot_mat[rownames(annot_mat) %in% common_rows, ]
+mat <- mat[rownames(mat) %in% common_rows, ]
+
+row_ha = HeatmapAnnotation(
+  df  = annot_mat, 
+  which = "row",
+  col = list(domain = unlist(named_list_d), 
+             family = unlist(named_list_f),
+             superfamily = unlist(named_list_s)),
+  border = c(domain = TRUE, family = TRUE, superfamily = TRUE),
+  gap = unit(2, "mm"),
+  annotation_legend_param = list(domain = list(labels_gp = gpar(fontsize = 16),
+                                               title_gp = gpar(fontsize = 22)
+                                               ),
+                                 family = list(labels_gp = gpar(fontsize = 16),
+                                               title_gp = gpar(fontsize = 22)
+                                               ),
+                                 superfamily = list(labels_gp = gpar(fontsize = 16),
+                                               title_gp = gpar(fontsize = 22)
+                                                  )
+                                 )
+                          )
+
+col_ha = columnAnnotation(
+    foo = anno_mark(at = c(1, 50, 100, 150, 200, 250, 300, 350, 379), 
+    labels = c("1","50","100","150", "200", "250", "300", "350", "379"))
+    )
+    
+mat2 <- data.matrix(mat)
+#create plot of number of clusters vs total within sum of squares #################################
+fviz_nbclust(mat2, kmeans, method = "wss",k.max = 20)
+fviz_nbclust(mat2, kmeans, method='silhouette', k.max = 20)
+```
+
+```{r}
+# Cluster and create dendrogram of the data
+num_cluster = 6
+# Function to compute Jaccard distance for binary data
+jaccard_dist <- function(mat) {
+  n <- nrow(mat)
+  dist_mat <- matrix(0, n, n)
+  for (i in 1:(n - 1)) {
+    for (j in (i + 1):n) {
+      intersection <- sum(mat[i, ] & mat[j, ])
+      union <- sum(mat[i, ] | mat[j, ])
+      dist_mat[i, j] <- 1 - intersection / union
+      dist_mat[j, i] <- dist_mat[i, j]
+    }
+  }
+  return(dist_mat)
+}
+
+# Compute Jaccard distance matrix
+# dist_matrix1 <- jaccard_dist(mat2)
+# dist_matrix <- as.matrix(dist(mat2, method = "binary"))
+# dend = set(as.dendrogram(hclust(dist(mat2, method = "euclidean"), method = "ward.D2")), "branches_lwd", 3)
+dend = set(as.dendrogram(hclust(dist(mat2, method = "binary"), method = "ward.D2")), "branches_lwd", 3)
+# dend = set(as.dendrogram(hclust(as.dist(dist_matrix), method = "ward.D2")), "branches_lwd", 3)
+dend = color_branches(dend, k = num_cluster)
+
+```
+
+```{r}
+# size of the heatmap
+calc_ht_size = function(ht, unit = "pt") {
+    pdf(NULL)
+    ht = draw(ht)
+    w = ComplexHeatmap:::width(ht)
+    w = convertX(w, unit, valueOnly = TRUE)
+    h = ComplexHeatmap:::height(ht)
+    h = convertY(h, unit, valueOnly = TRUE)
+    dev.off()
+
+    c(w, h)
+}
+
+# create and draw heatmap
+ht_opt$TITLE_PADDING = unit(c(8.5, 8.5), "points")
+ht_opt$ROW_ANNO_PADDING = unit(1, "cm")
+#ht_opt$ANNOTATION_LEGEND_PADDING = unit(1, "cm")
+ht_opt$HEATMAP_LEGEND_PADDING = unit(1, "cm")
+htmap <- Heatmap(mat2, 
+                 name = "mat", 
+                 cluster_columns = FALSE,
+                 cluster_rows = dend,
+                 row_dend_reorder = TRUE,
+                 right_annotation = row_ha,
+                 top_annotation = col_ha,
+                 show_column_names = FALSE,
+                 show_row_names = FALSE,
+                 #show_heatmap_legend = TRUE,
+                 col = col_fun,
+                 # clustering_method_rows = "ward.D2",
+                 # clustering_distance_rows = "euclidean",
+                 border = TRUE,
+                 row_gap = unit(5, "mm"),
+                 row_split = num_cluster,
+                 heatmap_width = unit(379, "mm"),
+                 heatmap_height = unit(550, "mm"),
+                 row_dend_width = unit(10, "cm"),
+                 # row_km = 5, 
+                 # row_km_repeats = 20,
+                 row_title = "cluster %s",
+                 row_title_rot = 0,
+                 row_title_gp = gpar(fontsize = 30, fontface = "bold"),
+                 heatmap_legend_param = list(legend_direction = "vertical",
+                                             title = "Residue",
+                                             labels = c("not an interface residue", "is an interface residue"),
+                                             at = c(0, 1),
+                                             labels_gp = gpar(fontsize = 16),
+                                             title_gp = gpar(fontsize = 18)
+                                             ),
+                 row_dend_gp = gpar(lwd = 2),
+                 border_gp = gpar(lwd = 2)
+                 )
+
+size = calc_ht_size(htmap)
+
+# draw and save heatmap ########################
+mult_factor <- 4
+png(file= paste("heatmap", savefilename, sep =""),
+    width = (size[1] +300)*mult_factor,
+    height = (size[2] +300)*mult_factor,
+    res=300)
+htmap <- draw(htmap,
+              heatmap_legend_side="right",
+              annotation_legend_side ="right",
+              legend_grouping = "adjusted"
+)
+
+
+dev.off()
+```
+
+```{r}
+htShiny(htmap,
+        output_ui_float = TRUE,
+        save = "heatmap_actin_filaments")
+```
+
+```{r}
+col_ha = HeatmapAnnotation(
+  df  = annot_mat, 
+  which = "column",
+  col = list(domain = unlist(named_list_d), 
+             family = unlist(named_list_f),
+             superfamily = unlist(named_list_s)),
+  border = c(domain = TRUE, family = TRUE, superfamily = TRUE),
+  gap = unit(2, "mm"))
+
+
+# ht_opt$TITLE_PADDING = unit(c(8.5,8.5), "points")
+cormap <- Heatmap(cor(t(mat2)), 
+                  name = "cor",
+                  show_column_names = FALSE,
+                  show_row_names = FALSE,
+                  row_dend_reorder = FALSE,
+                  right_annotation = row_ha,
+                  top_annotation = col_ha,
+                  # row_km = 5,
+                  # row_km_repeats = 50,
+                  # column_km = 5,
+                  # column_km_repeats = 50,
+                  cluster_rows = dend,
+                  cluster_columns = dend,
+                  row_split = num_cluster,
+                  column_split = num_cluster,
+                  # row_gap = unit(2, "mm"),
+                  # column_gap = unit(2, "mm"),
+                  # row_dend_width = unit(4, "cm"),
+                  # column_dend_height = unit(40, "cm"),
+                  heatmap_width = unit(16, "cm"),
+                  heatmap_height = unit(12, "cm"),
+                  show_column_dend = FALSE
+                  )
+
+cormap <- draw(cormap,
+              show_annotation_legend = FALSE,
+              show_heatmap_legend = FALSE)
+
+              
+
+# dev.off()
+```
+
+```{r}
+ht_shiny(cormap,
+        output_ui_float = TRUE)
+#        save = "cormap_actin_filaments")
+```
