@@ -1,6 +1,6 @@
 # Analysis of actin-protein interactions
 
-<img src="https://www.pngitem.com/pimgs/m/207-2073671_funny-work-in-progress-clipart-png-download-work.png" width="80%"/>
+<img src="https://www.pngitem.com/pimgs/m/207-2073671_funny-work-in-progress-clipart-png-download-work.png" width="20%"/>
 
 Note: Please open in Google Colaboratory to use interactively
 
