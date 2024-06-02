@@ -8,4 +8,4 @@
 3. Interface_matrix_generation.ipynb [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/omkargolatkar/actin_analysis/blob/main/Interface_matrix_generation.ipynb)
 <img src="https://github.com/omkargolatkar/actin_analysis/blob/main/assets/interface_matrix_schematic.png" width="50%"/>
 <img src="https://github.com/omkargolatkar/actin_analysis/blob/main/assets/interface_matrix_features.png" width="50%"/>
-<img src="https://github.com/omkargolatkar/actin_analysis/blob/main/assets/sim_matrix_features.png" width="50%>
+<img src="https://github.com/omkargolatkar/actin_analysis/blob/main/assets/sim_matrix_features.png" width="50%/>
