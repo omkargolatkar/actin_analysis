@@ -1,4 +1,7 @@
 # Analysis of actin-protein interactions
+
+Note: Please open in Google Colaboratory to use interactively
+
 1. Actin_dataset_generation.ipynb [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/omkargolatkar/actin_analysis/blob/main/Actin_dataset_generation.ipynb)
 <img src="https://github.com/omkargolatkar/actin_analysis/blob/main/assets/actin_dataset.png" width="50%"/>
 
